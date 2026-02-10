@@ -1,0 +1,7 @@
+{
+  "source": "telegram",
+  "message": {
+    "text": "Need help with my invoice status",
+    "userId": "user-123"
+  }
+}

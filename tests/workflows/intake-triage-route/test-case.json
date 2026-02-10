@@ -1,0 +1,7 @@
+{
+  "name": "billing-intent-routes-to-finance-queue",
+  "spec": "specs/intake-triage-route.yaml",
+  "workflow": "workflows/intake-triage-route.json",
+  "fixture": "fixtures/intake-triage-route/webhook-input.json",
+  "assertions": "tests/workflows/intake-triage-route/assertions.json"
+}
