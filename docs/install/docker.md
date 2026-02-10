@@ -127,6 +127,15 @@ openclaw config set models.providers.ollama.baseUrl "http://ollama:11434/v1"
 openclaw config set models.providers.ollama.apiKey "ollama-local"
 ```
 
+If your 7B Ollama model is the default heartbeat model for this deployment,
+set it as the primary default model in OpenClaw. Example:
+
+```bash
+openclaw config set models.defaults.model.primary "ollama/mistral:7b"
+```
+
+Use your actual 7B model tag if different.
+
 For skills that trigger n8n workflows, point those skill environment variables
 or config values at the n8n container URL (for example
 `http://n8n:5678`).
