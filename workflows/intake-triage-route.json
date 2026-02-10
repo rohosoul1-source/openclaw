@@ -1,0 +1,164 @@
+{
+  "name": "intake-triage-route",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "specId": "intake-triage-route",
+    "specVersion": "v1.0.0",
+    "workflowHash": "sha256:template"
+  },
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "intake-triage-route"
+      }
+    },
+    {
+      "id": "sanitize",
+      "name": "Sanitize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const payload = $json;\nreturn [{ json: { ...payload, sanitized: true } }];"
+      }
+    },
+    {
+      "id": "classify-intent",
+      "name": "Classify Intent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLASSIFIER_API_URL }}",
+        "sendBody": true,
+        "jsonBody": "={{ $json }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CRED_CLASSIFIER",
+          "name": "classifier-auth"
+        }
+      }
+    },
+    {
+      "id": "confidence-gate",
+      "name": "Confidence >= 0.8",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1020, 300],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.confidence }}",
+              "operation": "largerEqual",
+              "value2": 0.8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "route-queue",
+      "name": "Route Queue",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1260, 220],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "name": "queue",
+              "value": "={{ $json.intent === 'billing' ? 'finance' : 'general' }}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "clarifier",
+      "name": "Clarifier",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1260, 380],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "name": "clarifyingQuestions",
+              "value": "=['Can you clarify your goal?', 'What outcome do you expect?']",
+              "type": "array"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Input": {
+      "main": [
+        [
+          {
+            "node": "Classify Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Intent": {
+      "main": [
+        [
+          {
+            "node": "Confidence >= 0.8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confidence >= 0.8": {
+      "main": [
+        [
+          {
+            "node": "Route Queue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Clarifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

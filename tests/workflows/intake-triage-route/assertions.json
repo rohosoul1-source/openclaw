@@ -1,0 +1,17 @@
+{
+  "expect": [
+    {
+      "path": "$.queue",
+      "equals": "finance"
+    },
+    {
+      "path": "$.confidence",
+      "gte": 0.8
+    }
+  ],
+  "forbid": [
+    {
+      "path": "$.credentials.token"
+    }
+  ]
+}

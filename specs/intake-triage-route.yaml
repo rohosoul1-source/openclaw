@@ -1,0 +1,37 @@
+id: intake-triage-route
+version: v1.0.0
+task: 1
+summary: >-
+  Intake messages from webhook or chat channels, sanitize the payload, classify intent,
+  and route to a queue. Prompt for clarifying questions when confidence is below threshold.
+risk: low
+inputs:
+  - name: message
+    type: object
+    required: true
+  - name: source
+    type: string
+    required: true
+nodes:
+  - id: webhook-trigger
+    kind: n8n-nodes-base.webhook
+    description: Receive user input from channels.
+  - id: sanitize
+    kind: n8n-nodes-base.code
+    description: Normalize payload and remove obvious prompt-injection markers.
+  - id: classify-intent
+    kind: n8n-nodes-base.httpRequest
+    description: Call classifier model and return label with confidence score.
+  - id: confidence-gate
+    kind: n8n-nodes-base.if
+    description: Route low-confidence requests to clarifier branch.
+  - id: route-queue
+    kind: n8n-nodes-base.set
+    description: Map high-confidence intents to queue names.
+  - id: clarifier
+    kind: n8n-nodes-base.set
+    description: Generate one or two clarifying questions.
+tests:
+  - name: billing-intent-routes-to-finance-queue
+    fixture: fixtures/intake-triage-route/webhook-input.json
+    assertions: tests/workflows/intake-triage-route/assertions.json

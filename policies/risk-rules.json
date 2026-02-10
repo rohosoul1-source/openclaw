@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "require-approval-on-destructive-nodes",
+      "description": "Any workflow containing delete/write-external actions requires human approval.",
+      "match": {
+        "nodeKinds": [
+          "n8n-nodes-base.httpRequest",
+          "n8n-nodes-base.postgres",
+          "n8n-nodes-base.mongodb"
+        ],
+        "operations": ["delete", "update", "insert"]
+      },
+      "action": "require_approval"
+    }
+  ]
+}
