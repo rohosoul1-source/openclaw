@@ -144,6 +144,10 @@ openclaw config set models.defaults.model.primary "ollama/mistral:7b"
 
 Use your actual 7B model tag if different.
 
+If password authentication is part of your workflows, enforce a policy that only
+this local 7B model handles password-auth prompts and secret-bearing steps (no
+external model fallback for those actions).
+
 For skills that trigger n8n workflows, point those skill environment variables
 or config values at the n8n container URL (for example
 `http://n8n:5678`).
@@ -198,6 +202,7 @@ description: Trigger approved n8n workflows and summarize results
 - Trigger n8n only through `${N8N_BASE_URL}` with authenticated endpoints.
 - Use DB endpoints from env (`${NEO4J_URI}`, `${POSTGRES_URL}`) and route DB writes through approved n8n workflows.
 - Use local Ollama (`ollama/<your-7b-model>`) for planning and result summaries.
+- Keep password-auth and secret-handling steps pinned to the local 7B model only.
 - If a requested workflow is not allowlisted, stop and ask for confirmation.
 ```
 
