@@ -195,6 +195,73 @@ WhatsApp / Telegram / Slack / Discord / Google Chat / Signal / iMessage / BlueBu
                └─ iOS / Android nodes
 ```
 
+## Codebase architecture (wireframe)
+
+The codebase is organized as a set of runtime surfaces (Gateway, CLI, apps, web UI, extensions) with shared infrastructure modules and feature-specific subsystems. The wireframes below show the primary directories and the data flow between them.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                            Monorepo root                             │
+├─────────────────────────────────────────────────────────────────────┤
+│ src/                                                                │
+│  ├─ cli/           # CLI wiring + command entrypoints               │
+│  ├─ commands/      # Command implementations                         │
+│  ├─ channels/      # Shared channel interfaces + routing helpers     │
+│  ├─ routing/       # Agent routing + allowlist logic                 │
+│  ├─ infra/         # Core infra (config, storage, logging, env)       │
+│  ├─ media/         # Media pipeline (audio/image/video handling)      │
+│  ├─ telegram/      # Built-in channel implementations                │
+│  ├─ discord/       # Built-in channel implementations                │
+│  ├─ slack/         # Built-in channel implementations                │
+│  ├─ signal/        # Built-in channel implementations                │
+│  ├─ imessage/      # Built-in channel implementations                │
+│  ├─ web/           # WebChat + web gateway surfaces                  │
+│  └─ provider-web.ts# Web provider integration                        │
+│ extensions/                                                         │
+│  ├─ msteams/       # Extension channel packages                      │
+│  ├─ matrix/        # Extension channel packages                      │
+│  ├─ zalo/          # Extension channel packages                      │
+│  └─ ...                                                          │
+│ apps/                                                               │
+│  ├─ macos/         # macOS menu bar app                               │
+│  ├─ ios/           # iOS node app                                     │
+│  └─ android/       # Android node app                                │
+│ ui/                                                                │
+│  └─ web/           # Control UI + WebChat frontend                   │
+│ docs/                                                              │
+│  └─ ...            # Mintlify docs content                           │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+```
+                 Runtime surfaces + shared modules (data flow)
+┌────────────────────┐            ┌──────────────────────────┐
+│      CLI (src/cli) │  config    │        infra/            │
+│ commands + wizard  ├──────────▶ │  config + storage + env  │
+└─────────┬──────────┘            └──────────┬───────────────┘
+          │                                   │
+          │                                   ▼
+          │                           ┌──────────────────────┐
+          │           events + tools  │     Gateway core     │
+          ├──────────────────────────▶│   routing + agents   │
+          │                           └──────────┬──────────┘
+          │                                      │
+          │                                      │
+          ▼                                      ▼
+┌──────────────────────┐             ┌────────────────────────┐
+│ channels/* + web/*   │             │   media/* + tools      │
+│ inbound/outbound I/O │             │  audio/image/video     │
+└──────────────────────┘             └────────────────────────┘
+          │                                      │
+          ▼                                      ▼
+┌──────────────────────┐             ┌────────────────────────┐
+│ apps/* (macOS/iOS/   │             │ extensions/*           │
+│ Android nodes)       │             │ extra channel plugins  │
+└──────────────────────┘             └────────────────────────┘
+```
+
+For a deeper protocol-level view of the Gateway + agents, see the architecture docs: https://docs.openclaw.ai/concepts/architecture
+
 ## Key subsystems
 
 - **[Gateway WebSocket network](https://docs.openclaw.ai/concepts/architecture)** — single WS control plane for clients, tools, and events (plus ops: [Gateway runbook](https://docs.openclaw.ai/gateway)).
