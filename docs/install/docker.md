@@ -145,6 +145,50 @@ If n8n/Ollama run outside the compose project, either:
 - attach all containers to a shared external Docker network, or
 - use `host.docker.internal` when the service is bound on the Docker host.
 
+### Orchestrate all 3 services through skills + workspace markdown
+
+A reliable pattern is to keep orchestration logic in workspace skill markdown
+files, then route execution to n8n while using Ollama as the default model for
+planning/heartbeat prompts.
+
+1. Keep all three services on the same Docker network (`openclaw-gateway`,
+   `n8n`, and `ollama`).
+2. Store n8n entrypoint settings in skill environment/config values (for
+   example `N8N_BASE_URL=http://n8n:5678`).
+3. Put operational runbooks and workflow contracts in workspace markdown files
+   that skills can read (for example `workspace/notes/workflows.md`).
+4. Keep `models.defaults.model.primary` pointed at your local 7B Ollama model so
+   orchestration and fallback reasoning stay local by default.
+
+Example skill layout:
+
+```text
+~/.openclaw/workspace/
+  skills/
+    workflow-orchestrator/
+      SKILL.md
+  notes/
+    workflows.md
+```
+
+Example `SKILL.md` excerpt:
+
+```md
+---
+name: workflow-orchestrator
+description: Trigger approved n8n workflows and summarize results
+---
+
+- Read `/home/node/.openclaw/workspace/notes/workflows.md` for allowed workflow IDs.
+- Trigger n8n only through `${N8N_BASE_URL}` with authenticated endpoints.
+- Use local Ollama (`ollama/<your-7b-model>`) for planning and result summaries.
+- If a requested workflow is not allowlisted, stop and ask for confirmation.
+```
+
+This keeps orchestration auditable: workflow policy lives in markdown, while
+execution remains in OpenClaw skills that call n8n on the internal Docker
+network.
+
 ### Extra mounts (optional)
 
 If you want to mount additional host directories into the containers, set
