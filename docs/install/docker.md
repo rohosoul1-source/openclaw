@@ -94,6 +94,122 @@ docker compose run --rm openclaw-cli devices approve <requestId>
 
 More detail: [Dashboard](/web/dashboard), [Devices](/cli/devices).
 
+### Use n8n + Ollama in sibling containers (same Mac host)
+
+If OpenClaw runs in one container and your n8n, Ollama, Neo4j, and Postgres
+services run in different containers on the same Mac (for example, a Mac
+Studio), connect them through a shared Docker network.
+
+Key rule: inside the OpenClaw container, avoid `127.0.0.1`/`localhost` for
+sibling containers. Use Docker service names (or explicit container DNS names).
+
+Example `docker-compose.yml` pattern:
+
+```yaml
+services:
+  openclaw-gateway:
+    image: openclaw:local
+    depends_on:
+      - ollama
+      - n8n
+      - neo4j
+      - postgres
+
+  ollama:
+    image: ollama/ollama:latest
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+
+  neo4j:
+    image: neo4j:5
+
+  postgres:
+    image: pgvector/pgvector:pg16
+```
+
+Then configure OpenClaw to call Ollama with the container hostname:
+
+```bash
+openclaw config set models.providers.ollama.baseUrl "http://ollama:11434/v1"
+openclaw config set models.providers.ollama.apiKey "ollama-local"
+```
+
+If your 7B Ollama model is the default heartbeat model for this deployment,
+set it as the primary default model in OpenClaw. Example:
+
+```bash
+openclaw config set models.defaults.model.primary "ollama/mistral:7b"
+```
+
+Use your actual 7B model tag if different.
+
+If password authentication is part of your workflows, enforce a policy that only
+this local 7B model handles password-auth prompts and secret-bearing steps (no
+external model fallback for those actions).
+
+For skills that trigger n8n workflows, point those skill environment variables
+or config values at the n8n container URL (for example
+`http://n8n:5678`).
+
+For DB-aware workflows, keep database hosts on container DNS names so both n8n
+and OpenClaw orchestration can reach them on the same network (for example
+`neo4j:7687` and `postgres:5432`).
+
+If n8n/Ollama run outside the compose project, either:
+
+- attach all containers to a shared external Docker network, or
+- use `host.docker.internal` when the service is bound on the Docker host.
+
+### Orchestrate services through skills + workspace markdown
+
+A reliable pattern is to keep orchestration logic in workspace skill markdown
+files, then route execution to n8n while using Ollama as the default model for
+planning/heartbeat prompts.
+
+1. Keep all services on the same Docker network (`openclaw-gateway`, `n8n`,
+   `ollama`, `neo4j`, and `postgres`).
+2. Store n8n entrypoint settings in skill environment/config values (for
+   example `N8N_BASE_URL=http://n8n:5678`).
+3. Store DB connection settings in skill/n8n env (for example
+   `NEO4J_URI=bolt://neo4j:7687` and
+   `POSTGRES_URL=postgresql://<user>:<pass>@postgres:5432/<db>`).
+4. Put operational runbooks and workflow contracts in workspace markdown files
+   that skills can read (for example `workspace/notes/workflows.md`).
+5. Keep `models.defaults.model.primary` pointed at your local 7B Ollama model so
+   orchestration and fallback reasoning stay local by default.
+
+Example skill layout:
+
+```text
+~/.openclaw/workspace/
+  skills/
+    workflow-orchestrator/
+      SKILL.md
+  notes/
+    workflows.md
+```
+
+Example `SKILL.md` excerpt:
+
+```md
+---
+name: workflow-orchestrator
+description: Trigger approved n8n workflows and summarize results
+---
+
+- Read `/home/node/.openclaw/workspace/notes/workflows.md` for allowed workflow IDs.
+- Trigger n8n only through `${N8N_BASE_URL}` with authenticated endpoints.
+- Use DB endpoints from env (`${NEO4J_URI}`, `${POSTGRES_URL}`) and route DB writes through approved n8n workflows.
+- Use local Ollama (`ollama/<your-7b-model>`) for planning and result summaries.
+- Keep password-auth and secret-handling steps pinned to the local 7B model only.
+- If a requested workflow is not allowlisted, stop and ask for confirmation.
+```
+
+This keeps orchestration auditable: workflow policy lives in markdown, while
+execution remains in OpenClaw skills that call n8n on the internal Docker
+network.
+
 ### Extra mounts (optional)
 
 If you want to mount additional host directories into the containers, set
