@@ -94,6 +94,48 @@ docker compose run --rm openclaw-cli devices approve <requestId>
 
 More detail: [Dashboard](/web/dashboard), [Devices](/cli/devices).
 
+### Use n8n + Ollama in sibling containers (same Mac host)
+
+If OpenClaw runs in one container and your n8n and Ollama services run in
+different containers on the same Mac (for example, a Mac Studio), connect them
+through a shared Docker network.
+
+Key rule: inside the OpenClaw container, avoid `127.0.0.1`/`localhost` for
+sibling containers. Use Docker service names (or explicit container DNS names).
+
+Example `docker-compose.yml` pattern:
+
+```yaml
+services:
+  openclaw-gateway:
+    image: openclaw:local
+    depends_on:
+      - ollama
+      - n8n
+
+  ollama:
+    image: ollama/ollama:latest
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+```
+
+Then configure OpenClaw to call Ollama with the container hostname:
+
+```bash
+openclaw config set models.providers.ollama.baseUrl "http://ollama:11434/v1"
+openclaw config set models.providers.ollama.apiKey "ollama-local"
+```
+
+For skills that trigger n8n workflows, point those skill environment variables
+or config values at the n8n container URL (for example
+`http://n8n:5678`).
+
+If n8n/Ollama run outside the compose project, either:
+
+- attach all containers to a shared external Docker network, or
+- use `host.docker.internal` when the service is bound on the Docker host.
+
 ### Extra mounts (optional)
 
 If you want to mount additional host directories into the containers, set
